@@ -164,10 +164,16 @@ WATCHER_ENABLED=true
 LOG_LEVEL=info
 ```
 
-The Obsidian Headless binary is not vendored. If it is not on `PATH`
-inside the container, the supervisor logs a warning and the rest of the
-service runs normally — the vault can be populated by any other means
-(direct file writes, sync mounts, etc.).
+The Docker image installs the official Obsidian Headless CLI
+(`ob`, from the `obsidian-headless` npm package) by default. On startup
+the supervisor runs `ob login` and (if needed) `ob sync-setup` against
+the configured vault, then keeps `ob sync --continuous` running. Set
+`OBSIDIAN_HEADLESS_ENABLED=false` to skip the supervisor entirely, or
+build the image with `--build-arg INSTALL_OBSIDIAN_HEADLESS=false` to
+omit the CLI (and the Node 22 runtime that backs it) when the vault is
+populated by other means (direct file writes, sync mounts, etc.). If the
+binary is not on `PATH`, the supervisor logs a warning and the rest of
+the service runs normally.
 
 ---
 

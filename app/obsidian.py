@@ -1,16 +1,17 @@
 """Obsidian Headless process management.
 
-The Obsidian Headless container/binary syncs a remote Obsidian vault into
-a local directory using the user's account credentials. This module starts
-that process from inside our application container, restarts it on crash,
-and stops it cleanly on shutdown.
+Wraps the official Obsidian Headless CLI (``ob``, shipped by the
+``obsidian-headless`` npm package — https://github.com/obsidianmd/obsidian-headless),
+which logs in to an Obsidian account and syncs a remote vault to a local
+directory. This module logs in, sets up the local vault for sync (once),
+and then supervises the long-running ``ob sync --continuous`` process,
+restarting it on crash and stopping it cleanly on shutdown.
 
-The actual Obsidian Headless binary is not vendored with this repository
-(it is provided at deploy time via the Docker image). To accommodate
-environments where the binary is unavailable (CI, tests, local dev with a
-manually-populated vault), the manager can be disabled via the
-``OBSIDIAN_HEADLESS_ENABLED`` environment variable, and falls back to a
-no-op if no binary is on ``PATH``.
+The Docker image installs ``ob`` by default, but the manager also gracefully
+no-ops when the binary is absent (CI, tests, locally-populated vaults) or
+when ``OBSIDIAN_HEADLESS_ENABLED`` is false. For backward compatibility with
+custom images, bare ``obsidian-headless`` / ``obsidian`` / ``obsidian-sync``
+binaries on ``PATH`` are still detected and invoked with env-only config.
 """
 
 from __future__ import annotations
@@ -27,9 +28,15 @@ from .config import Settings
 
 log = logging.getLogger(__name__)
 
-# Candidate executable names the manager will look for.
-_CANDIDATES = ("obsidian-headless", "obsidian", "obsidian-sync")
+# Candidate executable names the manager will look for, in priority order.
+# ``ob`` is the official Obsidian Inc. CLI shipped via the ``obsidian-headless``
+# npm package; the others are kept for backward compatibility with custom
+# images that ship a pre-built binary under a different name.
+_CANDIDATES = ("ob", "obsidian-headless", "obsidian", "obsidian-sync")
 _RESTART_BACKOFF_SECONDS = 5.0
+_LOGIN_TIMEOUT_SECONDS = 60
+_SETUP_TIMEOUT_SECONDS = 120
+_STATUS_TIMEOUT_SECONDS = 30
 
 
 class ObsidianHeadlessManager:
@@ -49,20 +56,96 @@ class ObsidianHeadlessManager:
                 return path
         return None
 
+    @staticmethod
+    def _is_ob_cli(binary: str) -> bool:
+        return os.path.basename(binary) == "ob"
+
     def _build_env(self) -> dict[str, str]:
         env = os.environ.copy()
-        # Pass credentials through the environment; never log them.
+        # Pass credentials through the environment as well; never log them.
+        # The ``ob`` CLI doesn't read these directly (it uses flags + a
+        # credential store under $HOME), but custom binaries may.
         env["OBSIDIAN_EMAIL"] = self._settings.obsidian_email
         env["OBSIDIAN_PASSWORD"] = self._settings.obsidian_password
         env["OBSIDIAN_VAULT_NAME"] = self._settings.obsidian_vault_name
         env["OBSIDIAN_VAULT_PATH"] = str(self._settings.obsidian_vault_path)
         return env
 
+    def _setup_ob(self, binary: str) -> bool:
+        """Idempotent ``ob login`` + ``ob sync-setup`` for the official CLI.
+
+        Returns ``True`` if the vault is configured for continuous sync.
+        Credentials are passed via flags; this is acceptable in a container
+        where ``/proc`` is only visible to the same user, but should not be
+        used on shared hosts.
+        """
+        env = self._build_env()
+        vault_path = str(self._settings.obsidian_vault_path)
+        common = {
+            "env": env,
+            "stdin": subprocess.DEVNULL,
+            "stdout": subprocess.DEVNULL,
+            "stderr": subprocess.DEVNULL,
+        }
+
+        # Login is idempotent: if already logged in to the same account, it
+        # is a no-op; otherwise it (re-)authenticates.
+        try:
+            subprocess.run(  # noqa: S603 - inputs are env-controlled
+                [
+                    binary, "login",
+                    "--email", self._settings.obsidian_email,
+                    "--password", self._settings.obsidian_password,
+                ],
+                check=True, timeout=_LOGIN_TIMEOUT_SECONDS, **common,
+            )
+            log.info("obsidian_headless_login_ok")
+        except Exception:
+            log.exception("obsidian_headless_login_failed")
+            return False
+
+        # If the vault is already set up for sync at this path, sync-status
+        # exits 0; otherwise we run sync-setup.
+        try:
+            status = subprocess.run(  # noqa: S603 - inputs are env-controlled
+                [binary, "sync-status", "--path", vault_path],
+                env=env, stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                timeout=_STATUS_TIMEOUT_SECONDS,
+            )
+            already_configured = status.returncode == 0
+        except Exception:
+            log.exception("obsidian_headless_sync_status_failed")
+            already_configured = False
+
+        if not already_configured:
+            try:
+                subprocess.run(  # noqa: S603 - inputs are env-controlled
+                    [
+                        binary, "sync-setup",
+                        "--vault", self._settings.obsidian_vault_name,
+                        "--path", vault_path,
+                    ],
+                    check=True, timeout=_SETUP_TIMEOUT_SECONDS, **common,
+                )
+                log.info("obsidian_headless_sync_setup_ok",
+                         extra={"vault": self._settings.obsidian_vault_name})
+            except Exception:
+                log.exception("obsidian_headless_sync_setup_failed")
+                return False
+        return True
+
     def _spawn(self, binary: str) -> subprocess.Popen[bytes]:
-        # The exact CLI shape varies between Obsidian Headless distributions;
-        # most accept env-based config with no positional args.
+        if self._is_ob_cli(binary):
+            argv = [
+                binary, "sync", "--continuous",
+                "--path", str(self._settings.obsidian_vault_path),
+            ]
+        else:
+            # Legacy/custom binaries: env-based config, no positional args.
+            argv = [binary]
         return subprocess.Popen(  # noqa: S603 - inputs are env-controlled
-            [binary],
+            argv,
             env=self._build_env(),
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
@@ -71,6 +154,10 @@ class ObsidianHeadlessManager:
         )
 
     def _supervise(self, binary: str) -> None:
+        if self._is_ob_cli(binary) and not self._setup_ob(binary):
+            # Setup failed and we can't proceed; the rest of the service
+            # continues to run against whatever is already on disk.
+            return
         while not self._stop_event.is_set():
             try:
                 self._proc = self._spawn(binary)

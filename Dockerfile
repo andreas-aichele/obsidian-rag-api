@@ -5,9 +5,10 @@
 # Stage 1 ("builder") creates a virtualenv with all Python dependencies.
 # Stage 2 ("runtime") is a slim image with only what is needed at runtime.
 #
-# The Obsidian Headless binary is intentionally NOT vendored here. Operators
-# who want full Obsidian sync should base their image on this one and add
-# the binary to /usr/local/bin (its presence is auto-detected at startup).
+# The official Obsidian Headless CLI (`ob`, https://github.com/obsidianmd/obsidian-headless)
+# is installed via `npm install -g obsidian-headless` by default. Set the
+# build arg INSTALL_OBSIDIAN_HEADLESS=false to skip that install (and the
+# Node 22 runtime that backs it) when the vault is populated by other means.
 
 FROM python:3.11-slim AS builder
 
@@ -43,6 +44,23 @@ RUN groupadd --system app \
  && chown -R app:app /vault /data
 
 WORKDIR /app
+
+# Optionally install the official Obsidian Headless CLI (`ob`). It ships
+# the `better-sqlite3` native module, so we briefly add build tools for
+# the rare case prebuilt binaries are unavailable for the target arch,
+# then strip them again to keep the image lean.
+ARG INSTALL_OBSIDIAN_HEADLESS=true
+ARG OBSIDIAN_HEADLESS_VERSION=latest
+RUN if [ "$INSTALL_OBSIDIAN_HEADLESS" = "true" ]; then \
+        set -eux; \
+        apt-get update; \
+        apt-get install -y --no-install-recommends curl ca-certificates gnupg; \
+        curl -fsSL https://deb.nodesource.com/setup_22.x | bash -; \
+        apt-get install -y --no-install-recommends nodejs make g++; \
+        npm install -g --omit=dev "obsidian-headless@${OBSIDIAN_HEADLESS_VERSION}"; \
+        apt-get purge -y --auto-remove curl gnupg make g++; \
+        rm -rf /var/lib/apt/lists/* /root/.npm; \
+    fi
 
 COPY --from=builder /opt/venv /opt/venv
 COPY app ./app
