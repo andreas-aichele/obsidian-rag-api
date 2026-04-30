@@ -1,0 +1,27 @@
+meta {
+  name: Get context
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/agent/get-context
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{api_token}}
+}
+
+body:json {
+  {
+    "query": "Cloudflare Zero Trust setup",
+    "top_k": 8,
+    "max_chars": 8000
+  }
+}
+
+docs {
+  Agent-friendly alias for POST /context.
+}

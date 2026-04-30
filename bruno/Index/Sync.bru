@@ -1,0 +1,20 @@
+meta {
+  name: Sync
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/index/sync
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{api_token}}
+}
+
+docs {
+  Reconcile the metadata and vector indexes against the on-disk vault.
+  Idempotent. Returns counts: upserted, deleted, skipped (unchanged).
+}

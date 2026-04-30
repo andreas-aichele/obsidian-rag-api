@@ -1,0 +1,26 @@
+meta {
+  name: Search notes
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/agent/search-notes
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{api_token}}
+}
+
+body:json {
+  {
+    "query": "Cloudflare Zero Trust setup",
+    "top_k": 5
+  }
+}
+
+docs {
+  Agent-friendly alias for POST /search.
+}

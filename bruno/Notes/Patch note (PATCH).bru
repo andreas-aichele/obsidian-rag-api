@@ -1,0 +1,27 @@
+meta {
+  name: Patch note (PATCH)
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{base_url}}/notes/by-path
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{api_token}}
+}
+
+body:json {
+  {
+    "path": "Projects/Test.md",
+    "content": "Only updating content"
+  }
+}
+
+docs {
+  Partial update. Any field omitted from the request body is left
+  untouched. Frontmatter is shallow-merged.
+}

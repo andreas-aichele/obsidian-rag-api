@@ -1,0 +1,24 @@
+meta {
+  name: Get note by path
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/notes/by-path?path=Projects/Test.md
+  body: none
+  auth: bearer
+}
+
+params:query {
+  path: Projects/Test.md
+}
+
+auth:bearer {
+  token: {{api_token}}
+}
+
+docs {
+  Fetch a single note by its vault-relative path. Returns frontmatter,
+  rendered body, tags, headings, outgoing links and backlinks.
+}

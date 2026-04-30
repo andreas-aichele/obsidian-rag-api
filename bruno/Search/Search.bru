@@ -1,0 +1,30 @@
+meta {
+  name: Search
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/search
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{api_token}}
+}
+
+body:json {
+  {
+    "query": "Cloudflare Zero Trust setup",
+    "top_k": 5,
+    "filters": {
+      "tags": ["infrastructure"]
+    }
+  }
+}
+
+docs {
+  Vector search across note chunks. Hits include score, vault path,
+  title, chunk text, heading context, tags and last_modified.
+}

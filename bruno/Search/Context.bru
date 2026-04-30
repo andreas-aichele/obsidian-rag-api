@@ -1,0 +1,32 @@
+meta {
+  name: Context
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/context
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{api_token}}
+}
+
+body:json {
+  {
+    "query": "Cloudflare Zero Trust setup",
+    "top_k": 8,
+    "max_chars": 8000,
+    "filters": {
+      "tags": ["infrastructure"]
+    }
+  }
+}
+
+docs {
+  RAG context endpoint. Returns the top hits assembled into a single
+  Markdown blob (with per-source headings) plus the underlying source
+  hits for citation.
+}

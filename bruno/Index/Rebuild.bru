@@ -1,0 +1,21 @@
+meta {
+  name: Rebuild
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/index/rebuild
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{api_token}}
+}
+
+docs {
+  Drop all derived data (SQLite tables + vector collection) and re-index
+  the vault from scratch. Use after large external changes or schema
+  upgrades. Idempotent.
+}
