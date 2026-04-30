@@ -128,6 +128,7 @@ def run() -> None:  # pragma: no cover - thin wrapper around uvicorn
         host=settings.api_host,
         port=settings.api_port,
         log_config=None,
+        access_log=False,
     )
 
 
