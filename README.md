@@ -108,6 +108,30 @@ Volumes:
 | `/vault` | Obsidian vault (Markdown files)          |
 | `/data`  | SQLite metadata + embedding cache        |
 
+### Pre-built images
+
+Tagged releases are published to GitHub Container Registry:
+
+```bash
+docker pull ghcr.io/andreas-aichele/obsidian-rag-api:latest
+# or pin to a version
+docker pull ghcr.io/andreas-aichele/obsidian-rag-api:0.1.0
+```
+
+### API testing with Bruno
+
+A [Bruno](https://www.usebruno.com/) collection lives in [`bruno/`](./bruno/)
+and covers every endpoint (Health, Notes CRUD/move, Search, Context,
+Index sync/rebuild, Agent aliases). Open the folder in Bruno or run
+the whole collection from the CLI:
+
+```bash
+npm install -g @usebruno/cli
+cd bruno && bru run --env Local
+```
+
+See [`bruno/README.md`](./bruno/README.md) for details.
+
 ---
 
 ## 4. Environment variables
@@ -320,7 +344,29 @@ mkdir -p vault data
 
 ---
 
-## 8. Extension roadmap
+## 8. Releases
+
+Tagged pushes (`v*`) trigger [`.github/workflows/release.yml`](./.github/workflows/release.yml),
+which:
+
+1. Builds the `Dockerfile` for `linux/amd64` + `linux/arm64`.
+2. Pushes to `ghcr.io/<owner>/<repo>` with semver + `latest` tags.
+3. Creates a GitHub Release with auto-generated notes and the pull
+   command for the new image.
+
+To cut a release:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+Every push to `main` (and every PR) also runs lint + tests via
+[`.github/workflows/ci.yml`](./.github/workflows/ci.yml).
+
+---
+
+## 9. Extension roadmap
 
 * **Backlinks at scale.** Currently computed via SQL at request time;
   for very large vaults, materialize them on write.
