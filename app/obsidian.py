@@ -131,7 +131,7 @@ class ObsidianHeadlessManager:
             status = subprocess.run(  # noqa: S603 - inputs are env-controlled
                 [binary, "sync-status", "--path", vault_path],
                 env=env, stdin=subprocess.DEVNULL,
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                capture_output=True, text=True,
                 timeout=_STATUS_TIMEOUT_SECONDS,
             )
             already_configured = status.returncode == 0
