@@ -81,12 +81,6 @@ class ObsidianHeadlessManager:
         """
         env = self._build_env()
         vault_path = str(self._settings.obsidian_vault_path)
-        common = {
-            "env": env,
-            "stdin": subprocess.DEVNULL,
-            "stdout": subprocess.DEVNULL,
-            "stderr": subprocess.DEVNULL,
-        }
 
         # Login is idempotent: if already logged in to the same account, it
         # is a no-op; otherwise it (re-)authenticates.
@@ -97,7 +91,12 @@ class ObsidianHeadlessManager:
                     "--email", self._settings.obsidian_email,
                     "--password", self._settings.obsidian_password,
                 ],
-                check=True, timeout=_LOGIN_TIMEOUT_SECONDS, **common,
+                check=True,
+                timeout=_LOGIN_TIMEOUT_SECONDS,
+                env=env,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
             )
             log.info("obsidian_headless_login_ok")
         except Exception:
@@ -126,7 +125,12 @@ class ObsidianHeadlessManager:
                         "--vault", self._settings.obsidian_vault_name,
                         "--path", vault_path,
                     ],
-                    check=True, timeout=_SETUP_TIMEOUT_SECONDS, **common,
+                    check=True,
+                    timeout=_SETUP_TIMEOUT_SECONDS,
+                    env=env,
+                    stdin=subprocess.DEVNULL,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
                 )
                 log.info("obsidian_headless_sync_setup_ok",
                          extra={"vault": self._settings.obsidian_vault_name})

@@ -15,6 +15,7 @@ from pathlib import Path
 
 from watchdog.events import FileSystemEvent, FileSystemEventHandler
 from watchdog.observers import Observer
+from watchdog.observers.api import BaseObserver
 
 from .config import Settings
 from .indexer import Indexer
@@ -52,7 +53,12 @@ class _VaultEventHandler(FileSystemEventHandler):
             self._enqueue(dest, "upsert")
 
     # ------------------------------------------------------------------------
-    def _enqueue(self, raw_path: str, action: str) -> None:
+    def _enqueue(self, raw_path: str | bytes, action: str) -> None:
+        if isinstance(raw_path, bytes):
+            try:
+                raw_path = raw_path.decode("utf-8")
+            except UnicodeDecodeError:
+                return
         if not raw_path or not raw_path.endswith(".md"):
             return
         path = Path(raw_path)
@@ -93,7 +99,7 @@ class VaultWatcher:
     def __init__(self, settings: Settings, indexer: Indexer) -> None:
         self._settings = settings
         self._indexer = indexer
-        self._observer: Observer | None = None
+        self._observer: BaseObserver | None = None
 
     def start(self) -> None:
         vault = self._settings.obsidian_vault_path
