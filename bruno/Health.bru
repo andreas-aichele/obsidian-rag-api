@@ -1,0 +1,16 @@
+meta {
+  name: Health
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/health
+  body: none
+  auth: none
+}
+
+docs {
+  Health check. Unauthenticated. Returns service status, version,
+  embedding provider and vector backend.
+}

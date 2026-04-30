@@ -1,0 +1,27 @@
+meta {
+  name: Move note
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{base_url}}/notes/move
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{api_token}}
+}
+
+body:json {
+  {
+    "from_path": "Projects/Old.md",
+    "to_path": "Projects/New.md"
+  }
+}
+
+docs {
+  Move/rename a note within the vault. Vectors are re-attached to the
+  new path without re-embedding (content unchanged → cache hit).
+}

@@ -1,0 +1,30 @@
+meta {
+  name: Create note
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{base_url}}/agent/create-note
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{api_token}}
+}
+
+body:json {
+  {
+    "path": "Agent/Note.md",
+    "title": "Agent Note",
+    "frontmatter": {
+      "tags": ["agent"]
+    },
+    "content": "# Agent Note\n\nCreated by an agent."
+  }
+}
+
+docs {
+  Agent-friendly alias for POST /notes.
+}
