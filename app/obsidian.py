@@ -37,6 +37,13 @@ _RESTART_BACKOFF_SECONDS = 5.0
 _LOGIN_TIMEOUT_SECONDS = 60
 _SETUP_TIMEOUT_SECONDS = 120
 _STATUS_TIMEOUT_SECONDS = 30
+_MAX_OB_OUTPUT_CHARS = 1000
+
+
+def _clean_ob_output(value: str | None) -> str:
+    if not value:
+        return ""
+    return value.strip()[:_MAX_OB_OUTPUT_CHARS]
 
 
 class ObsidianHeadlessManager:
@@ -84,8 +91,9 @@ class ObsidianHeadlessManager:
         common = {
             "env": env,
             "stdin": subprocess.DEVNULL,
-            "stdout": subprocess.DEVNULL,
-            "stderr": subprocess.DEVNULL,
+            "stdout": subprocess.PIPE,
+            "stderr": subprocess.PIPE,
+            "text": True,
         }
 
         # Login is idempotent: if already logged in to the same account, it
@@ -100,8 +108,21 @@ class ObsidianHeadlessManager:
                 check=True, timeout=_LOGIN_TIMEOUT_SECONDS, **common,
             )
             log.info("obsidian_headless_login_ok")
+        except subprocess.CalledProcessError as exc:
+            log.error(
+                "obsidian_headless_login_failed",
+                extra={
+                    "returncode": exc.returncode,
+                    "stdout": _clean_ob_output(exc.stdout),
+                    "stderr": _clean_ob_output(exc.stderr),
+                },
+            )
+            return False
+        except subprocess.TimeoutExpired:
+            log.error("obsidian_headless_login_timed_out")
+            return False
         except Exception:
-            log.exception("obsidian_headless_login_failed")
+            log.exception("obsidian_headless_login_error")
             return False
 
         # If the vault is already set up for sync at this path, sync-status
@@ -110,28 +131,65 @@ class ObsidianHeadlessManager:
             status = subprocess.run(  # noqa: S603 - inputs are env-controlled
                 [binary, "sync-status", "--path", vault_path],
                 env=env, stdin=subprocess.DEVNULL,
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
                 timeout=_STATUS_TIMEOUT_SECONDS,
             )
             already_configured = status.returncode == 0
+            if not already_configured:
+                log.info(
+                    "obsidian_headless_sync_not_configured",
+                    extra={
+                        "returncode": status.returncode,
+                        "stdout": _clean_ob_output(status.stdout),
+                        "stderr": _clean_ob_output(status.stderr),
+                    },
+                )
+        except subprocess.TimeoutExpired:
+            log.error("obsidian_headless_sync_status_timed_out")
+            already_configured = False
         except Exception:
-            log.exception("obsidian_headless_sync_status_failed")
+            log.exception("obsidian_headless_sync_status_error")
             already_configured = False
 
         if not already_configured:
+            setup_args = [
+                binary,
+                "sync-setup",
+                "--vault", self._settings.obsidian_vault_name,
+                "--path", vault_path,
+            ]
+            sync_password = (
+                self._settings.obsidian_vault_encryption_password
+                or self._settings.obsidian_password
+            )
+            if sync_password:
+                setup_args.extend(["--password", sync_password])
             try:
                 subprocess.run(  # noqa: S603 - inputs are env-controlled
-                    [
-                        binary, "sync-setup",
-                        "--vault", self._settings.obsidian_vault_name,
-                        "--path", vault_path,
-                    ],
+                    setup_args,
                     check=True, timeout=_SETUP_TIMEOUT_SECONDS, **common,
                 )
                 log.info("obsidian_headless_sync_setup_ok",
                          extra={"vault": self._settings.obsidian_vault_name})
+            except subprocess.CalledProcessError as exc:
+                log.error(
+                    "obsidian_headless_sync_setup_failed",
+                    extra={
+                        "returncode": exc.returncode,
+                        "vault": self._settings.obsidian_vault_name,
+                        "stdout": _clean_ob_output(exc.stdout),
+                        "stderr": _clean_ob_output(exc.stderr),
+                    },
+                )
+                return False
+            except subprocess.TimeoutExpired:
+                log.error(
+                    "obsidian_headless_sync_setup_timed_out",
+                    extra={"vault": self._settings.obsidian_vault_name},
+                )
+                return False
             except Exception:
-                log.exception("obsidian_headless_sync_setup_failed")
+                log.exception("obsidian_headless_sync_setup_error")
                 return False
         return True
 

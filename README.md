@@ -141,6 +141,7 @@ See [`bruno/README.md`](./bruno/README.md) for details.
 OBSIDIAN_EMAIL=
 OBSIDIAN_PASSWORD=
 OBSIDIAN_VAULT_NAME=
+OBSIDIAN_VAULT_ENCRYPTION_PASSWORD=  # optional: Obsidian Sync E2E password
 OBSIDIAN_VAULT_PATH=/vault
 OBSIDIAN_HEADLESS_ENABLED=true   # set to false to disable supervisor
 
@@ -174,6 +175,12 @@ omit the CLI (and the Node 22 runtime that backs it) when the vault is
 populated by other means (direct file writes, sync mounts, etc.). If the
 binary is not on `PATH`, the supervisor logs a warning and the rest of
 the service runs normally.
+
+`OBSIDIAN_VAULT_NAME` must match the remote Obsidian Sync vault name exactly
+(including case), or use the remote vault ID shown by `ob sync-list-remote`.
+If the remote vault uses end-to-end encryption and the vault password differs
+from `OBSIDIAN_PASSWORD`, set `OBSIDIAN_VAULT_ENCRYPTION_PASSWORD` to the vault
+encryption password.
 
 ---
 

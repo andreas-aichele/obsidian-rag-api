@@ -17,6 +17,13 @@ def test_split_frontmatter() -> None:
     assert body == "# Body\n"
 
 
+def test_split_frontmatter_normalizes_yaml_dates() -> None:
+    text = "---\ndate: 2026-04-30\nnested:\n  reviewed: 2026-05-01\n---\n# Body\n"
+    fm, body = split_frontmatter(text)
+    assert fm == {"date": "2026-04-30", "nested": {"reviewed": "2026-05-01"}}
+    assert body == "# Body\n"
+
+
 def test_split_frontmatter_missing() -> None:
     fm, body = split_frontmatter("# only body\n")
     assert fm == {}

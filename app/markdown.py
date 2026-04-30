@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import re
 from dataclasses import dataclass, field
+from datetime import date, datetime
 from typing import Any
 
 import yaml
@@ -58,7 +59,19 @@ def split_frontmatter(text: str) -> tuple[dict[str, Any], str]:
         return {}, text
     if not isinstance(data, dict):
         return {}, text
-    return data, text[match.end():]
+    return _jsonable_frontmatter(data), text[match.end():]
+
+
+def _jsonable_frontmatter(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {str(k): _jsonable_frontmatter(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_jsonable_frontmatter(v) for v in value]
+    if isinstance(value, tuple):
+        return [_jsonable_frontmatter(v) for v in value]
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    return value
 
 
 def _strip_code_fences(text: str) -> str:

@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     obsidian_email: str = ""
     obsidian_password: str = ""
     obsidian_vault_name: str = ""
+    obsidian_vault_encryption_password: str = ""
     obsidian_vault_path: Path = Path("/vault")
     obsidian_headless_enabled: bool = True
 
