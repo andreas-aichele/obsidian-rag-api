@@ -10,14 +10,15 @@
 #
 # We deliberately let the Python process own the Obsidian Headless lifecycle
 # so that crashes are restarted with backoff and shutdowns are graceful.
+#
+# We invoke the app via ``python -m app.main`` (which calls ``app.main.run``)
+# so that uvicorn is configured programmatically with ``log_config=None`` and
+# ``access_log=False``. This lets the app's own ``configure_logging()`` install
+# the JSON formatter without uvicorn first overwriting it from a config file.
 
 set -eu
 
 mkdir -p "${OBSIDIAN_VAULT_PATH:-/vault}"
 mkdir -p "$(dirname "${SQLITE_PATH:-/data/obsidian-rag-api.sqlite}")"
 
-exec uvicorn app.main:app \
-    --host "${API_HOST:-0.0.0.0}" \
-    --port "${API_PORT:-8000}" \
-    --log-config /dev/null \
-    --no-access-log
+exec python -m app.main
