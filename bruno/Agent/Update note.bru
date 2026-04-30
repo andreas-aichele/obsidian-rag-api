@@ -1,0 +1,26 @@
+meta {
+  name: Update note
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{base_url}}/agent/update-note
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{api_token}}
+}
+
+body:json {
+  {
+    "path": "Agent/Note.md",
+    "content": "# Agent Note\n\nUpdated by an agent."
+  }
+}
+
+docs {
+  Agent-friendly alias for PATCH /notes/by-path. Frontmatter is shallow-merged.
+}

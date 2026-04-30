@@ -1,0 +1,31 @@
+meta {
+  name: Replace note (PUT)
+  type: http
+  seq: 3
+}
+
+put {
+  url: {{base_url}}/notes/by-path
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{api_token}}
+}
+
+body:json {
+  {
+    "path": "Projects/Test.md",
+    "title": "Updated",
+    "frontmatter": {
+      "tags": ["updated"]
+    },
+    "content": "# Updated\n\nNew content"
+  }
+}
+
+docs {
+  Full replace. Frontmatter and body are overwritten with the supplied
+  values. Use PATCH for partial updates.
+}

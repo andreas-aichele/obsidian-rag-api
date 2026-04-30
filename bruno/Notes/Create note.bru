@@ -1,0 +1,31 @@
+meta {
+  name: Create note
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/notes
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{api_token}}
+}
+
+body:json {
+  {
+    "path": "Projects/Test.md",
+    "title": "Test",
+    "frontmatter": {
+      "tags": ["project", "test"]
+    },
+    "content": "# Test\n\nThis is a test note."
+  }
+}
+
+docs {
+  Create a new note. The path must end with `.md` and is always relative
+  to the vault root. Returns 409 if the note already exists.
+}

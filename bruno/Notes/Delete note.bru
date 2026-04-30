@@ -1,0 +1,24 @@
+meta {
+  name: Delete note
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{base_url}}/notes/by-path?path=Projects/Test.md
+  body: none
+  auth: bearer
+}
+
+params:query {
+  path: Projects/Test.md
+}
+
+auth:bearer {
+  token: {{api_token}}
+}
+
+docs {
+  Delete a note from disk and remove it from the metadata + vector indexes.
+  Returns 204 on success, 404 if the note does not exist.
+}
